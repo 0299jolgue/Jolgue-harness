@@ -7,18 +7,31 @@ from ddgs import DDGS
 from fastapi import FastAPI, Header, HTTPException, Depends
 from fastapi.responses import FileResponse
 from openai import AsyncOpenAI
+import uvicorn
 from pydantic import BaseModel, Field
 
-APP_API_KEY=os.getenv("APP_API_KEY","").strip()
-QWEN_BASE_URL=os.getenv("QWEN_BASE_URL","").strip()
-QWEN_API_KEY=os.getenv("QWEN_API_KEY","").strip() or "not-needed"
-QWEN_MODEL=os.getenv("QWEN_MODEL","").strip()
-IMAGE_API_URL=os.getenv("IMAGE_API_URL","").strip()
-IMAGE_API_KEY=os.getenv("IMAGE_API_KEY","").strip()
-DB_PATH=Path(os.getenv("DATABASE_PATH","/data/agent.db"))
-WORKSPACE=Path(os.getenv("WORKSPACE_PATH","/data/workspace")).resolve()
-MAX_STEPS=max(1,min(int(os.getenv("MAX_TOOL_STEPS","6")),12))
-TIMEOUT=max(20,min(int(os.getenv("REQUEST_TIMEOUT_SECONDS","180")),300))
+CONFIG_PATH=Path(os.getenv("CONFIG_PATH","config.json"))
+try:
+    CONFIG=json.loads(CONFIG_PATH.read_text(encoding="utf-8")) if CONFIG_PATH.exists() else {}
+except (OSError,json.JSONDecodeError) as e:
+    raise RuntimeError(f"Cannot read {CONFIG_PATH}: {type(e).__name__}") from e
+
+def setting(name: str, env_name: str, default: Any="")->str:
+    # config.json is the primary configuration; hosting-panel environment variables can override it.
+    return str(os.getenv(env_name,CONFIG.get(name,default)) or "").strip()
+
+HOST=setting("host","APP_HOST","0.0.0.0")
+PORT=max(1,min(int(setting("port","PORT","80") or "80"),65535))
+APP_API_KEY=setting("app_api_key","APP_API_KEY")
+QWEN_BASE_URL=setting("qwen_base_url","QWEN_BASE_URL")
+QWEN_API_KEY=setting("qwen_api_key","QWEN_API_KEY") or "not-needed"
+QWEN_MODEL=setting("qwen_model","QWEN_MODEL")
+IMAGE_API_URL=setting("image_api_url","IMAGE_API_URL")
+IMAGE_API_KEY=setting("image_api_key","IMAGE_API_KEY")
+DB_PATH=Path(setting("database_path","DATABASE_PATH","/data/agent.db") or "/data/agent.db")
+WORKSPACE=Path(setting("workspace_path","WORKSPACE_PATH","/data/workspace") or "/data/workspace").resolve()
+MAX_STEPS=max(1,min(int(setting("max_tool_steps","MAX_TOOL_STEPS","6") or "6"),12))
+TIMEOUT=max(20,min(int(setting("request_timeout_seconds","REQUEST_TIMEOUT_SECONDS","180") or "180"),300))
 WORKSPACE.mkdir(parents=True,exist_ok=True)
 DB_PATH.parent.mkdir(parents=True,exist_ok=True)
 app=FastAPI(title="Jolgue Harness API",version="0.1.0",docs_url=None,redoc_url=None)
@@ -219,3 +232,8 @@ async def chat_completions(req: ChatRequest, _:None=Depends(auth)):
             temperature=req.temperature,max_tokens=req.max_tokens)
         return result.model_dump()
     except Exception as e:raise HTTPException(502,"Qwen request failed: "+type(e).__name__+": "+str(e)[:300])
+
+
+if __name__ == "__main__":
+    # ShardCloud's launcher executes "python app.py", so start the server here.
+    uvicorn.run(app, host=HOST, port=PORT, log_level="info")
