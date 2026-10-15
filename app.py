@@ -194,7 +194,7 @@ def persist_config():
     try:
         with os.fdopen(fd,"w",encoding="utf-8") as f:
             json.dump(CONFIG,f,ensure_ascii=False,indent=2)
-            f.write("\\n")
+            f.write("\n")
         os.replace(tmp_name,CONFIG_PATH)
     except Exception:
         try: os.unlink(tmp_name)
