@@ -99,6 +99,7 @@ def terminal(command: str)->dict:
         args=shlex.split(command)
         if not args:return {"error":"Empty command."}
         if args[0] not in ALLOWED:return {"error":"Command not allowed. Available: "+", ".join(sorted(ALLOWED))}
+        if any(a.startswith("/") or ".." in Path(a).parts for a in args[1:]): return {"error":"Absolute paths and parent-directory traversal are disabled; use paths inside the workspace."}
         if any(x in command for x in ("&&","||",";","|",">","<","\x60","$(","\n","\r")):
             return {"error":"Shell operators/chaining are disabled."}
         if args[0] in {"python","python3"} and (len(args)<2 or args[1].startswith("-") or not args[1].endswith(".py")):
