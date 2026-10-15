@@ -77,7 +77,7 @@ def list_files(path: str=".")->dict:
     p=safe_path(path)
     if not p.exists(): return {"path":path,"files":[]}
     if not p.is_dir(): return {"error":"Path is not a directory."}
-    return {"path":path,"files":[{"name":x.name,"directory":x.is_dir()} for x in sorted(p.iterdir())[:100]}
+    return {"path":path,"files":[{"name":x.name,"directory":x.is_dir()} for x in sorted(p.iterdir())[:100]]}
 
 def read_file(path: str)->dict:
     p=safe_path(path)
@@ -179,6 +179,7 @@ async def agent_run(req: AgentRequest, _:None=Depends(auth)):
     messages=[{"role":m.role,"content":m.content or ""} for m in req.messages]
     # Keep the context bounded to reduce memory and token usage.
     messages=messages[-30:]
+    images=[]
     try:
         for _step in range(MAX_STEPS):
             result=await c.chat.completions.create(model=QWEN_MODEL,messages=messages,tools=TOOL_DEFS,tool_choice="auto")
@@ -193,7 +194,9 @@ async def agent_run(req: AgentRequest, _:None=Depends(auth)):
                 try:args=json.loads(tc.function.arguments or "{}")
                 except json.JSONDecodeError:args={}
                 if tc.function.name=="generate_image":
-                    try:output=await generate_image(str(args.get("prompt","")))
+                    try:
+                        output=await generate_image(str(args.get("prompt","")))
+                        if "image_url" in output or "image_base64" in output: images.append(output)
                     except HTTPException as e:output={"error":e.detail}
                 else:output=run_tool(tc.function.name,args)
                 messages.append({"role":"tool","tool_call_id":tc.id,"content":json.dumps(output,ensure_ascii=False)[:18000]})
