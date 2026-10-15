@@ -21,7 +21,7 @@ def setting(name: str, env_name: str, default: Any="")->str:
     return str(os.getenv(env_name,CONFIG.get(name,default)) or "").strip()
 
 HOST=setting("host","APP_HOST","0.0.0.0")
-PORT=max(1,min(int(setting("port","PORT","80") or "80"),65535))
+PORT=max(1,min(int(setting("port","APP_PORT","80") or "80"),65535))
 APP_API_KEY=setting("app_api_key","APP_API_KEY")
 QWEN_BASE_URL=setting("qwen_base_url","QWEN_BASE_URL")
 QWEN_API_KEY=setting("qwen_api_key","QWEN_API_KEY") or "not-needed"
@@ -49,7 +49,7 @@ def init_db():
 init_db()
 
 async def auth(authorization: str|None=Header(default=None)):
-    if not APP_API_KEY or APP_API_KEY=="replace-with-a-long-random-secret":
+    if not APP_API_KEY or APP_API_KEY in {"CHANGE_THIS_TO_A_LONG_RANDOM_SECRET","replace-with-a-long-random-secret"}:
         raise HTTPException(503,"Administrator must set a strong APP_API_KEY.")
     if not authorization or not hmac.compare_digest(authorization,"Bearer "+APP_API_KEY):
         raise HTTPException(401,"Missing or invalid bearer token.")
