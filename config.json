@@ -1,0 +1,14 @@
+{
+  "host": "0.0.0.0",
+  "port": 80,
+  "app_api_key": "CHANGE_THIS_TO_A_LONG_RANDOM_SECRET",
+  "qwen_base_url": "",
+  "qwen_api_key": "",
+  "qwen_model": "",
+  "image_api_url": "",
+  "image_api_key": "",
+  "database_path": "/data/agent.db",
+  "workspace_path": "/data/workspace",
+  "max_tool_steps": 6,
+  "request_timeout_seconds": 180
+}
