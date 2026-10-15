@@ -21,15 +21,15 @@ def setting(name: str, env_name: str, default: Any="")->str:
     return str(os.getenv(env_name,CONFIG.get(name,default)) or "").strip()
 
 HOST=setting("host","APP_HOST","0.0.0.0")
-PORT=max(1,min(int(setting("port","APP_PORT","80") or "80"),65535))
+PORT=max(1,min(int(os.getenv("PORT") or os.getenv("APP_PORT") or CONFIG.get("port",80) or 80),65535))
 APP_API_KEY=setting("app_api_key","APP_API_KEY")
 QWEN_BASE_URL=setting("qwen_base_url","QWEN_BASE_URL")
 QWEN_API_KEY=setting("qwen_api_key","QWEN_API_KEY") or "not-needed"
 QWEN_MODEL=setting("qwen_model","QWEN_MODEL")
 IMAGE_API_URL=setting("image_api_url","IMAGE_API_URL")
 IMAGE_API_KEY=setting("image_api_key","IMAGE_API_KEY")
-DB_PATH=Path(setting("database_path","DATABASE_PATH","/data/agent.db") or "/data/agent.db")
-WORKSPACE=Path(setting("workspace_path","WORKSPACE_PATH","/data/workspace") or "/data/workspace").resolve()
+DB_PATH=Path(setting("database_path","DATABASE_PATH","data/agent.db") or "data/agent.db")
+WORKSPACE=Path(setting("workspace_path","WORKSPACE_PATH","data/workspace") or "data/workspace").resolve()
 MAX_STEPS=max(1,min(int(setting("max_tool_steps","MAX_TOOL_STEPS","6") or "6"),12))
 TIMEOUT=max(20,min(int(setting("request_timeout_seconds","REQUEST_TIMEOUT_SECONDS","180") or "180"),300))
 WORKSPACE.mkdir(parents=True,exist_ok=True)
