@@ -1,5 +1,5 @@
 from __future__ import annotations
-import hmac, json, os, shlex, sqlite3, subprocess, time, uuid
+import hmac, json, os, shlex, sqlite3, subprocess, time, uuid, tempfile
 from pathlib import Path
 from typing import Any
 import httpx
@@ -67,6 +67,15 @@ class AgentRequest(BaseModel):
     conversation_id: str|None=None
 class ImageRequest(BaseModel):
     prompt: str=Field(min_length=1,max_length=3000)
+
+class SettingsUpdate(BaseModel):
+    qwen_base_url: str|None=None
+    qwen_api_key: str|None=None
+    qwen_model: str|None=None
+    image_api_url: str|None=None
+    image_api_key: str|None=None
+    clear_qwen_api_key: bool=False
+    clear_image_api_key: bool=False
 class ChatRequest(BaseModel):
     model: str|None=None
     messages: list[dict[str,Any]]=Field(min_length=1,max_length=80)
@@ -177,6 +186,71 @@ def save_events(cid: str,messages: list[dict]):
             content=m.get("content","")
             if isinstance(content,(dict,list)):content=json.dumps(content,ensure_ascii=False)
             c.execute("INSERT INTO events(conversation_id,created_at,role,content) VALUES(?,?,?,?)",(cid,now,role,str(content)[:20000]))
+
+def persist_config():
+    """Atomically persist runtime settings to config.json."""
+    CONFIG_PATH.parent.mkdir(parents=True,exist_ok=True)
+    fd,tmp_name=tempfile.mkstemp(prefix=CONFIG_PATH.name+".",suffix=".tmp",dir=str(CONFIG_PATH.parent))
+    try:
+        with os.fdopen(fd,"w",encoding="utf-8") as f:
+            json.dump(CONFIG,f,ensure_ascii=False,indent=2)
+            f.write("\\n")
+        os.replace(tmp_name,CONFIG_PATH)
+    except Exception:
+        try: os.unlink(tmp_name)
+        except OSError: pass
+        raise
+
+@app.get("/v1/settings")
+async def get_settings(_:None=Depends(auth)):
+    return {
+        "qwen_base_url":QWEN_BASE_URL,
+        "qwen_model":QWEN_MODEL,
+        "qwen_api_key_set":bool(QWEN_API_KEY and QWEN_API_KEY!="not-needed"),
+        "image_api_url":IMAGE_API_URL,
+        "image_api_key_set":bool(IMAGE_API_KEY),
+        "qwen_configured":bool(QWEN_BASE_URL and QWEN_MODEL),
+        "image_configured":bool(IMAGE_API_URL),
+        "host":HOST,
+        "port":PORT,
+        "max_tool_steps":MAX_STEPS,
+        "request_timeout_seconds":TIMEOUT
+    }
+
+@app.post("/v1/settings")
+async def update_settings(req:SettingsUpdate, _:None=Depends(auth)):
+    global CONFIG,QWEN_BASE_URL,QWEN_API_KEY,QWEN_MODEL,IMAGE_API_URL,IMAGE_API_KEY
+    updates=req.model_dump(exclude_none=True)
+    if "qwen_base_url" in updates:
+        value=updates["qwen_base_url"].strip()
+        if value and not value.startswith(("http://","https://")):
+            raise HTTPException(400,"Qwen Base URL must start with http:// or https://.")
+        CONFIG["qwen_base_url"]=value
+    if "qwen_model" in updates:
+        CONFIG["qwen_model"]=updates["qwen_model"].strip()
+    if "image_api_url" in updates:
+        value=updates["image_api_url"].strip()
+        if value and not value.startswith(("http://","https://")):
+            raise HTTPException(400,"Image endpoint must start with http:// or https://.")
+        CONFIG["image_api_url"]=value
+    if req.clear_qwen_api_key:
+        CONFIG["qwen_api_key"]=""
+    elif updates.get("qwen_api_key","").strip():
+        CONFIG["qwen_api_key"]=updates["qwen_api_key"].strip()
+    if req.clear_image_api_key:
+        CONFIG["image_api_key"]=""
+    elif updates.get("image_api_key","").strip():
+        CONFIG["image_api_key"]=updates["image_api_key"].strip()
+    try:
+        persist_config()
+    except OSError as e:
+        raise HTTPException(500,"Could not save config.json: "+type(e).__name__)
+    QWEN_BASE_URL=str(CONFIG.get("qwen_base_url","")).strip()
+    QWEN_API_KEY=str(CONFIG.get("qwen_api_key","")).strip() or "not-needed"
+    QWEN_MODEL=str(CONFIG.get("qwen_model","")).strip()
+    IMAGE_API_URL=str(CONFIG.get("image_api_url","")).strip()
+    IMAGE_API_KEY=str(CONFIG.get("image_api_key","")).strip()
+    return {"ok":True,"message":"Settings saved to config.json.","qwen_configured":bool(QWEN_BASE_URL and QWEN_MODEL),"image_configured":bool(IMAGE_API_URL),"qwen_api_key_set":QWEN_API_KEY!="not-needed","image_api_key_set":bool(IMAGE_API_KEY)}
 
 @app.get("/health")
 async def health():
