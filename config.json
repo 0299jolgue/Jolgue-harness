@@ -7,8 +7,8 @@
   "qwen_model": "",
   "image_api_url": "",
   "image_api_key": "",
-  "database_path": "/data/agent.db",
-  "workspace_path": "/data/workspace",
+  "database_path": "data/agent.db",
+  "workspace_path": "data/workspace",
   "max_tool_steps": 6,
   "request_timeout_seconds": 180
 }
