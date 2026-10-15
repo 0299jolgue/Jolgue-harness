@@ -5,6 +5,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends git ca-certific
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app.py .
+COPY config.json .
 COPY static ./static
 RUN mkdir -p /data/workspace && chown -R 10001:10001 /app /data
 USER 10001:10001
