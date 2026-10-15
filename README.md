@@ -6,15 +6,15 @@ A small agent workspace for a Qwen model and Z-Image-Turbo running on Kaggle, wi
 
 **This app supports ShardCloud's `python app.py` launcher and binds to port 80.** The server starts from the bottom of `app.py`; it will no longer exit immediately after Python executes the file.
 
-1. Deploy branch `agent-harness` from this repository on ShardCloud.
+1. Deploy the `main` branch from this repository on ShardCloud.
 2. Keep the start command as `python app.py` and expose port **80**.
 3. Edit `config.json` in your deployment to set a long, private `app_api_key`. Do not commit a real key to a public GitHub repository.
-4. Set `qwen_base_url` to the OpenAI-compatible Kaggle gateway URL ending in `/v1`, and `qwen_model` to the exact served model ID.
-5. Set `image_api_url` to the Kaggle gateway's `/v1/images/generations` URL if image generation is available.
+4. Open **Settings & API key** in the web UI and enter the same `app_api_key`.
+5. In that single settings screen, configure Qwen Base URL, model ID and API key, then the Z-Image-Turbo image endpoint and its API key. Click **Save all settings**; the server writes the values to `config.json` without exposing saved API keys back to the browser.
 6. Mount persistent storage at `/data` if ShardCloud supports it, so SQLite history and workspace files survive restarts.
 7. Check `https://YOUR-SHARD-CLOUD-HOST/health`. It should return JSON including `"ok": true` and `"port": 80`.
 
-You can override config values with hosting-panel environment variables if desired; a `.env` file is not required. The JSON file is the primary config.
+You can override config values with hosting-panel environment variables if desired; a `.env` file is not required. The JSON file is the primary config. After the first secure connection, model endpoints and API keys can also be updated from **Settings & API key** in the UI; the application key itself remains managed in the deployment config.
 
 ## config.json
 
@@ -39,12 +39,12 @@ Models are not bundled here. Kaggle sessions and temporary Cloudflare URLs can e
 
 ## Features
 
-- Dark web UI.
+- ChatGPT-inspired responsive dark UI with recent chats, polished SVG icons, a unified model settings screen, and a detailed About panel.
 - Authenticated `POST /v1/agent/run` with multi-step function calling.
 - Web search, workspace list/read/write, and restricted terminal tools.
 - Z-Image-Turbo proxy endpoint `POST /v1/images/generations`.
 - OpenAI-compatible Qwen passthrough `POST /v1/chat/completions`.
-- SQLite conversation/event storage and `GET /health`.
+- SQLite conversation/event storage, `GET /health`, and authenticated `GET/POST /v1/settings` for runtime configuration.
 
 ## Safety and limitations
 
